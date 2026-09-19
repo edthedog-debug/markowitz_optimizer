@@ -1,0 +1,73 @@
+name: Run Markowitz optimizer
+
+on:
+  workflow_dispatch:
+    inputs:
+      tickers:
+        description: "Tickers separated by spaces"
+        required: true
+        default: "AAPL MSFT GOOGL NVDA"
+      years:
+        description: "Years of history"
+        required: true
+        default: "10"
+      max_weight:
+        description: "Max weight per stock (0-1)"
+        required: true
+        default: "1.0"
+      risk_free:
+        description: "Risk-free rate (0.04 = 4%)"
+        required: true
+        default: "0.04"
+      skip_backtest:
+        description: "Skip the win-rate backtest (faster)"
+        type: boolean
+        default: false
+
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip numpy pandas scipy matplotlib
+
+      - name: Run optimizer
+        shell: bash
+        env:
+          TICKERS: ${{ inputs.tickers }}
+          YEARS: ${{ inputs.years }}
+          MAX_WEIGHT: ${{ inputs.max_weight }}
+          RISK_FREE: ${{ inputs.risk_free }}
+          SKIP: ${{ inputs.skip_backtest }}
+        run: |
+          mkdir -p results
+          EXTRA=""
+          if [ "$SKIP" = "true" ]; then EXTRA="--skip-backtest"; fi
+          python main_ios.py --tickers $TICKERS --years "$YEARS" \
+            --max-weight "$MAX_WEIGHT" --risk-free-rate "$RISK_FREE" \
+            --output results/efficient_frontier_vs_sp500.png $EXTRA 2>&1 | tee results/output.txt
+
+      - name: Show results in the run summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '### Markowitz optimizer output'
+            echo '```'
+            cat results/output.txt 2>/dev/null || echo "(no output)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload chart and text output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: markowitz-results
+          path: results/
