@@ -1,0 +1,13 @@
+# Market data
+yfinance>=0.2.40
+
+# Numerical / data stack
+numpy>=1.24
+pandas>=2.0
+scipy>=1.10
+
+# Mean-variance optimization (pulls in cvxpy as a dependency)
+PyPortfolioOpt>=1.5.5
+
+# Plotting
+matplotlib>=3.7
